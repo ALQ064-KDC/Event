@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>イベント売上集計</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--tx:#1b1f24;--sub:#6b7280;--bd:#e2e5ea;--ac:#2563ac;--ok:#1e8a4c;--warn:#e8720c;--inp:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111418;--card:#1a1e24;--tx:#e8eaed;--sub:#9aa3af;--bd:#2c323b;--ac:#6ea8f0;--ok:#4cc38a;--warn:#f0994d;--inp:#232830}}
+:root[data-theme="dark"]{--bg:#111418;--card:#1a1e24;--tx:#e8eaed;--sub:#9aa3af;--bd:#2c323b;--ac:#6ea8f0;--ok:#4cc38a;--warn:#f0994d;--inp:#232830}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",Meiryo,sans-serif;font-size:16px;padding-bottom:76px}
+header{padding:14px 16px 4px}
+header h1{font-size:18px;margin:0}
+header .ev{color:var(--sub);font-size:13px;margin-top:2px}
+main{padding:8px 12px 24px;max-width:560px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin:10px 0}
+.card h2{font-size:15px;margin:0 0 10px}
+label{display:block;font-size:13px;color:var(--sub);margin:10px 0 4px}
+input[type=text],input[type=date]{width:100%;padding:11px 12px;border:1px solid var(--bd);border-radius:8px;background:var(--inp);color:var(--tx);font-size:16px}
+.row{display:grid;grid-template-columns:78px 1fr 1fr 92px;gap:6px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--bd)}
+.row.bill{grid-template-columns:78px 1fr 92px}
+.row:last-child{border-bottom:none}
+.row .d{font-weight:600;font-size:14px;overflow-wrap:anywhere}
+.row .d small{display:block;color:var(--sub);font-weight:400;font-size:11px}
+.row input{width:100%;text-align:right;padding:10px 8px;border:1px solid var(--bd);border-radius:8px;background:var(--inp);color:var(--tx);font-size:17px}
+.row .a{text-align:right;font-variant-numeric:tabular-nums;font-size:14px}
+.hd{display:grid;grid-template-columns:78px 1fr 1fr 92px;gap:6px;font-size:11px;color:var(--sub);text-align:right}
+.hd.bill{grid-template-columns:78px 1fr 92px}
+.hd span:first-child{text-align:left}
+.tot{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0 0;font-size:15px}
+.tot b{font-size:22px;font-variant-numeric:tabular-nums}
+.sum3 .l{display:flex;justify-content:space-between;padding:6px 0;font-size:15px}
+.sum3 .l.big{border-top:2px solid var(--bd);margin-top:4px;padding-top:10px;font-size:17px;font-weight:700}
+.pos{color:var(--ok)}.neg{color:var(--warn)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.chip{flex:0 0 auto;padding:8px 12px;border:1px solid var(--bd);border-radius:999px;background:var(--card);color:var(--tx);font-size:13px;text-align:center;line-height:1.3}
+.chip.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.chip.done::after{content:" ✓";color:var(--ok)}
+.chip.on.done::after{color:#fff}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;padding:10px 6px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--tx);font-size:14px;line-height:1.35}
+.seg button small{display:block;color:var(--sub);font-size:12px}
+.seg button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.seg button.on small{color:#fff;opacity:.9}
+.btn{width:100%;padding:13px;border:none;border-radius:10px;background:var(--ac);color:#fff;font-size:16px;font-weight:600;margin-top:10px}
+.btn.sub{background:transparent;color:var(--ac);border:1px solid var(--bd)}
+.trow{display:grid;grid-template-columns:1fr 104px 40px;gap:6px;align-items:center;margin:6px 0}
+.trow input{padding:10px 8px}
+.trow input.n{text-align:right}
+.trow .x{height:40px;border:1px solid var(--bd);border-radius:8px;background:transparent;color:var(--warn);font-size:18px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 6px;border-bottom:1px solid var(--bd);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--sub);font-size:12px;font-weight:500}
+tfoot td{font-weight:700;border-top:2px solid var(--bd);border-bottom:none}
+.note{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;padding:10px 2px 8px;background:none;border:none;color:var(--sub);font-size:11px}
+nav button span{display:block;font-size:20px;line-height:1.2}
+nav button.on{color:var(--ac);font-weight:700}
+.gear{background:none;border:none;color:var(--sub);font-size:12px;margin-top:18px;width:100%}
+</style>
+</head>
+<body>
+<header>
+  <h1>イベント売上集計</h1>
+  <div class="ev" id="evline"></div>
+</header>
+<main id="main"></main>
+<nav id="nav">
+  <button data-v="setup"><span>📝</span>イベント</button>
+  <button data-v="reserve"><span>💴</span>準備金</button>
+  <button data-v="daily"><span>📅</span>日次売上</button>
+  <button data-v="summary"><span>📊</span>集計</button>
+</nav>
+
+<script>
+const BILLS=[10000,5000,2000,1000];
+const COINS=[500,100,50,10,5,1];
+const ROLL={500:25000,100:5000,50:2500,10:500,5:250,1:50};
+const KEY='event_tally_v1';
+const yen=n=>'¥'+(n||0).toLocaleString('ja-JP');
+const num=n=>(n||0).toLocaleString('ja-JP');
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const toHalf=v=>v.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/[^0-9]/g,'');
+
+function emptyCash(){
+  const c={b:{},r:{},l:{},t:{}};
+  BILLS.forEach(d=>c.b[d]=0);
+  COINS.forEach(d=>{c.r[d]=0;c.l[d]=0});
+  return c;
+}
+function cashTotal(c){
+  let t=0;
+  BILLS.forEach(d=>t+=(c.b[d]||0)*d);
+  COINS.forEach(d=>t+=(c.r[d]||0)*ROLL[d]+(c.l[d]||0)*d);
+  return t;
+}
+function ticketTotal(c){
+  let t=0;
+  S.tickets.forEach(k=>t+=((c.t&&c.t[k.id])||0)*(k.amt||0));
+  return t;
+}
+let S={name:'',start:'',end:'',reserves:[emptyCash(),emptyCash()],tickets:[],days:{},sel:''};
+let view='setup';
+let resView=0;
+
+function load(){
+  try{
+    const raw=localStorage.getItem(KEY);
+    if(raw){
+      const o=JSON.parse(raw);
+      if(o.reserve&&!o.reserves){o.reserves=[o.reserve,emptyCash()];}
+      delete o.reserve;
+      S=Object.assign(S,o);
+    }
+  }catch(e){}
+  while(S.reserves.length<2)S.reserves.push(emptyCash());
+  if(!Array.isArray(S.tickets))S.tickets=[];
+}
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+}
+
+/* 日付は UTC で計算（JSTずれ防止） */
+function parseD(s){const [y,m,d]=s.split('-').map(Number);return Date.UTC(y,m-1,d);}
+function fmtD(ms){const t=new Date(ms);return t.getUTCFullYear()+'-'+String(t.getUTCMonth()+1).padStart(2,'0')+'-'+String(t.getUTCDate()).padStart(2,'0');}
+const WD=['日','月','火','水','木','金','土'];
+function dayList(){
+  if(!S.start||!S.end)return [];
+  const a=parseD(S.start),b=parseD(S.end);
+  if(isNaN(a)||isNaN(b)||b<a)return [];
+  const out=[];
+  for(let t=a,i=0;t<=b&&i<62;t+=86400000,i++)out.push(fmtD(t));
+  return out;
+}
+function shortD(s){const t=new Date(parseD(s));return (t.getUTCMonth()+1)+'/'+t.getUTCDate()+'('+WD[t.getUTCDay()]+')';}
+
+/* その日に適用する準備金（未指定なら前日までの指定を引き継ぐ。なければ1） */
+function resOf(d){
+  const c=S.days[d];
+  if(c&&c.res)return c.res;
+  const list=dayList();
+  for(let i=list.indexOf(d)-1;i>=0;i--){
+    const p=S.days[list[i]];
+    if(p&&p.res)return p.res;
+  }
+  return 1;
+}
+function reserveAmt(d){return cashTotal(S.reserves[resOf(d)-1]);}
+function isEntered(c){return !!c&&(cashTotal(c)>0||ticketTotal(c)>0);}
+/* 当日売上 = (実棚があれば 実棚−準備金) + 金券合計 */
+function calcDay(d){
+  const c=S.days[d]||emptyCash();
+  const j=cashTotal(c),r=reserveAmt(d),k=ticketTotal(c);
+  const cashPart=j>0?j-r:0;
+  return {j,r,k,u:cashPart+k,res:resOf(d)};
+}
+
+function setHeader(){
+  const el=document.getElementById('evline');
+  if(S.name){
+    const p=(S.start&&S.end)?'　'+S.start.replace(/-/g,'/')+' 〜 '+S.end.replace(/-/g,'/'):'';
+    el.textContent=S.name+p;
+  }else el.textContent='イベント名・会期を入力してください';
+}
+
+/* ---- 金種シート ---- */
+function sheetHTML(cash,pfx){
+  let h='<div class="hd bill"><span>金種</span><span>枚数</span><span>金額</span></div>';
+  BILLS.forEach(d=>{
+    h+=`<div class="row bill"><div class="d">${num(d)}円<small>札</small></div>
+    <input type="text" inputmode="numeric" data-g="b" data-d="${d}" value="${cash.b[d]||''}" placeholder="0">
+    <div class="a" id="${pfx}a_b${d}">${num((cash.b[d]||0)*d)}</div></div>`;
+  });
+  h+='<div class="hd" style="margin-top:10px"><span>金種</span><span>積金(本)</span><span>バラ(枚)</span><span>金額</span></div>';
+  COINS.forEach(d=>{
+    h+=`<div class="row"><div class="d">${num(d)}円<small>1本=${num(ROLL[d])}</small></div>
+    <input type="text" inputmode="numeric" data-g="r" data-d="${d}" value="${cash.r[d]||''}" placeholder="0">
+    <input type="text" inputmode="numeric" data-g="l" data-d="${d}" value="${cash.l[d]||''}" placeholder="0">
+    <div class="a" id="${pfx}a_c${d}">${num((cash.r[d]||0)*ROLL[d]+(cash.l[d]||0)*d)}</div></div>`;
+  });
+  return h;
+}
+function refreshSheet(cash,pfx){
+  BILLS.forEach(d=>{const e=document.getElementById(pfx+'a_b'+d);if(e)e.textContent=num((cash.b[d]||0)*d);});
+  COINS.forEach(d=>{const e=document.getElementById(pfx+'a_c'+d);if(e)e.textContent=num((cash.r[d]||0)*ROLL[d]+(cash.l[d]||0)*d);});
+}
+function bindSheet(root,getCash,after){
+  root.querySelectorAll('input[data-g]').forEach(inp=>{
+    inp.addEventListener('focus',()=>setTimeout(()=>inp.select(),0));
+    inp.addEventListener('input',()=>{
+      const v=toHalf(inp.value);
+      if(v!==inp.value)inp.value=v;
+      const c=getCash();
+      c[inp.dataset.g][inp.dataset.d]=v===''?0:parseInt(v,10);
+      save();after();
+    });
+  });
+}
+
+/* ---- イベント設定 ---- */
+function ticketRowsHTML(){
+  if(!S.tickets.length)return '<div class="note">金券・チケットの種類がまだありません。</div>';
+  return S.tickets.map(k=>`<div class="trow" data-id="${k.id}">
+    <input type="text" data-f="name" value="${esc(k.name)}" placeholder="名称（例：前売券）">
+    <input type="text" class="n" inputmode="numeric" data-f="amt" value="${k.amt||''}" placeholder="金額">
+    <button class="x" data-del="${k.id}" aria-label="削除">×</button></div>`).join('');
+}
+function renderSetup(m){
+  m.innerHTML=`<div class="card"><h2>イベント情報</h2>
+    <label>イベント名</label>
+    <input type="text" id="f_name" value="${esc(S.name)}" placeholder="例：春の大感謝祭">
+    <label>会期（開始日）</label><input type="date" id="f_start" value="${S.start}">
+    <label>会期（終了日）</label><input type="date" id="f_end" value="${S.end}">
+    <div class="note" id="f_note"></div>
+  </div>
+  <div class="card"><h2>金券・チケットの種類</h2>
+    <div id="tlist">${ticketRowsHTML()}</div>
+    <button class="btn sub" id="tadd">＋ 種類を追加</button>
+    <div class="note">名称と1枚あたりの金額を登録すると、日次売上で枚数を入力できます。金額を後から変えると、入力済みの日の金額にも反映されます。</div>
+  </div>
+  <button class="gear" id="reset">⚙ データをリセット</button>`;
+  const note=()=>{
+    const n=dayList().length;
+    document.getElementById('f_note').textContent=n?`会期 ${n} 日間`:(S.start&&S.end?'終了日が開始日より前になっています':'');
+  };
+  note();
+  [['f_name','name'],['f_start','start'],['f_end','end']].forEach(([id,k])=>{
+    document.getElementById(id).addEventListener('input',e=>{
+      S[k]=e.target.value;
+      if(k==='start'&&!S.end){S.end=S.start;document.getElementById('f_end').value=S.end;}
+      save();setHeader();note();
+    });
+  });
+  const tl=document.getElementById('tlist');
+  tl.addEventListener('input',e=>{
+    const inp=e.target.closest('input');if(!inp)return;
+    const k=S.tickets.find(x=>x.id===inp.closest('.trow').dataset.id);if(!k)return;
+    if(inp.dataset.f==='amt'){
+      const v=toHalf(inp.value);if(v!==inp.value)inp.value=v;
+      k.amt=v===''?0:parseInt(v,10);
+    }else k.name=inp.value;
+    save();
+  });
+  tl.addEventListener('focusin',e=>{if(e.target.dataset&&e.target.dataset.f==='amt'){const i=e.target;setTimeout(()=>i.select(),0);}});
+  tl.addEventListener('click',e=>{
+    const b=e.target.closest('[data-del]');if(!b)return;
+    const k=S.tickets.find(x=>x.id===b.dataset.del);
+    if(!k)return;
+    if(confirm(`「${k.name||'名称なし'}」を削除しますか？入力済みの枚数も集計から外れます。`)){
+      S.tickets=S.tickets.filter(x=>x.id!==k.id);save();tl.innerHTML=ticketRowsHTML();
+    }
+  });
+  document.getElementById('tadd').addEventListener('click',()=>{
+    S.tickets.push({id:'t'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:'',amt:0});
+    save();tl.innerHTML=ticketRowsHTML();
+    const ins=tl.querySelectorAll('input[data-f="name"]');ins[ins.length-1].focus();
+  });
+  let armed=false,tm;
+  const rb=document.getElementById('reset');
+  rb.addEventListener('click',()=>{
+    if(!armed){armed=true;rb.textContent='⚠ もう一度押すと全データを削除';rb.style.color='var(--warn)';
+      tm=setTimeout(()=>{armed=false;rb.textContent='⚙ データをリセット';rb.style.color='';},4000);}
+    else{clearTimeout(tm);S={name:'',start:'',end:'',reserves:[emptyCash(),emptyCash()],tickets:[],days:{},sel:''};save();setHeader();renderSetup(m);}
+  });
+}
+
+/* ---- 準備金 ---- */
+function renderReserve(m){
+  const cash=()=>S.reserves[resView];
+  m.innerHTML=`<div class="seg" id="rseg">
+      <button data-i="0" class="${resView===0?'on':''}">準備金 1<small id="rt0">${yen(cashTotal(S.reserves[0]))}</small></button>
+      <button data-i="1" class="${resView===1?'on':''}">準備金 2<small id="rt1">${yen(cashTotal(S.reserves[1]))}</small></button>
+    </div>
+    <div class="card"><h2>釣銭準備金 ${resView+1}</h2>
+    <div id="sheet">${sheetHTML(cash(),'r_')}</div>
+    <div class="tot"><span>準備金 ${resView+1} 合計</span><b id="rtot">${yen(cashTotal(cash()))}</b></div>
+    <div class="note">準備金は日ごとに1か2を選べます（日次売上タブ）。準備金を変更するときは2に入力してください。</div></div>`;
+  bindSheet(m,cash,()=>{
+    refreshSheet(cash(),'r_');
+    const t=yen(cashTotal(cash()));
+    document.getElementById('rtot').textContent=t;
+    document.getElementById('rt'+resView).textContent=t;
+  });
+  document.getElementById('rseg').addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    resView=parseInt(b.dataset.i,10);renderReserve(m);
+  });
+}
+
+/* ---- 日次売上 ---- */
+function renderDaily(m){
+  const days=dayList();
+  if(!days.length){m.innerHTML='<div class="card">先に「イベント」タブで会期を入力してください。</div>';return;}
+  if(!days.includes(S.sel))S.sel=days[0];
+  const d=S.sel;
+  const chips=days.map(x=>`<button class="chip${x===d?' on':''}${isEntered(S.days[x])?' done':''}" data-d="${x}">${shortD(x)}</button>`).join('');
+  const cur=S.days[d]||emptyCash();
+  const tk=S.tickets.length?S.tickets.map(k=>`<div class="row bill"><div class="d">${esc(k.name)||'（名称なし）'}<small>${num(k.amt)}円/枚</small></div>
+      <input type="text" inputmode="numeric" data-tk="${k.id}" value="${(cur.t&&cur.t[k.id])||''}" placeholder="0">
+      <div class="a" id="tk_${k.id}">${num(((cur.t&&cur.t[k.id])||0)*(k.amt||0))}</div></div>`).join('')
+    :'<div class="note">金券・チケットの種類が未登録です。「イベント」タブで登録してください。</div>';
+  m.innerHTML=`<div class="chips" id="chips">${chips}</div>
+  <div class="card"><h2>${shortD(d)} 適用する準備金</h2>
+    <div class="seg" id="rsel">
+      <button data-i="1"><span>準備金 1</span><small>${yen(cashTotal(S.reserves[0]))}</small></button>
+      <button data-i="2"><span>準備金 2</span><small>${yen(cashTotal(S.reserves[1]))}</small></button>
+    </div></div>
+  <div class="card"><h2>実棚（営業終了時の現金）</h2>
+    <div id="sheet"></div>
+    <div class="tot"><span>実棚 合計</span><b id="jtot"></b></div></div>
+  <div class="card"><h2>金券・チケット（枚数）</h2>
+    <div id="tk">${tk}</div>
+    <div class="tot"><span>金券 合計</span><b id="ktot"></b></div></div>
+  <div class="card sum3">
+    <div class="l"><span>実棚</span><span id="s_j"></span></div>
+    <div class="l"><span id="s_rl">− 準備金</span><span id="s_r"></span></div>
+    <div class="l"><span>＋ 金券</span><span id="s_k"></span></div>
+    <div class="l big"><span>当日売上</span><span id="s_u"></span></div>
+    <div class="note">実棚が未入力（0円）の日は、金券のみを売上として計算します。</div>
+  </div>`;
+  const ensure=()=>{
+    if(!S.days[d])S.days[d]=emptyCash();
+    const c=S.days[d];if(!c.t)c.t={};
+    return c;
+  };
+  document.getElementById('sheet').innerHTML=sheetHTML(cur,'d_');
+  const upd=()=>{
+    const c=S.days[d]||emptyCash();
+    const v=calcDay(d);
+    refreshSheet(c,'d_');
+    S.tickets.forEach(k=>{const e=document.getElementById('tk_'+k.id);if(e)e.textContent=num(((c.t&&c.t[k.id])||0)*(k.amt||0));});
+    document.getElementById('jtot').textContent=yen(v.j);
+    document.getElementById('ktot').textContent=yen(v.k);
+    document.getElementById('s_j').textContent=yen(v.j);
+    document.getElementById('s_rl').textContent='− 準備金'+v.res;
+    document.getElementById('s_r').textContent=yen(v.j>0?v.r:0);
+    document.getElementById('s_k').textContent=yen(v.k);
+    const su=document.getElementById('s_u');su.textContent=yen(v.u);su.className=v.u<0?'neg':'pos';
+    document.querySelectorAll('#rsel button').forEach(b=>b.classList.toggle('on',parseInt(b.dataset.i,10)===v.res));
+    const ch=document.querySelector(`.chip[data-d="${d}"]`);
+    if(ch)ch.classList.toggle('done',isEntered(S.days[d]));
+  };
+  upd();
+  bindSheet(document.getElementById('sheet'),ensure,upd);
+  document.querySelectorAll('#tk input[data-tk]').forEach(inp=>{
+    inp.addEventListener('focus',()=>setTimeout(()=>inp.select(),0));
+    inp.addEventListener('input',()=>{
+      const v=toHalf(inp.value);if(v!==inp.value)inp.value=v;
+      ensure().t[inp.dataset.tk]=v===''?0:parseInt(v,10);
+      save();upd();
+    });
+  });
+  document.getElementById('rsel').addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    ensure().res=parseInt(b.dataset.i,10);save();upd();
+  });
+  document.getElementById('chips').addEventListener('click',e=>{
+    const b=e.target.closest('.chip');if(!b)return;
+    S.sel=b.dataset.d;save();renderDaily(m);
+  });
+}
+
+/* ---- 集計 ---- */
+function renderSummary(m){
+  const days=dayList();
+  if(!days.length){m.innerHTML='<div class="card">先に「イベント」タブで会期を入力してください。</div>';return;}
+  let rows='',sum=0,cnt=0,ksum=0;
+  const tsv=[['日付','実棚','準備金','準備金No','金券','当日売上']];
+  const tcount={};
+  days.forEach(d=>{
+    const c=S.days[d];
+    if(isEntered(c)){
+      const v=calcDay(d);sum+=v.u;ksum+=v.k;cnt++;
+      S.tickets.forEach(k=>{tcount[k.id]=(tcount[k.id]||0)+((c.t&&c.t[k.id])||0);});
+      rows+=`<tr><td>${shortD(d)}</td><td>${num(v.j)}</td><td>${v.j>0?num(v.r)+'<span style="color:var(--sub);font-size:11px">('+v.res+')</span>':'-'}</td><td>${num(v.k)}</td><td class="${v.u<0?'neg':''}">${num(v.u)}</td></tr>`;
+      tsv.push([d,v.j,v.j>0?v.r:0,v.res,v.k,v.u]);
+    }else{
+      rows+=`<tr><td>${shortD(d)}</td><td colspan="4" style="color:var(--sub)">未入力</td></tr>`;
+    }
+  });
+  tsv.push(['合計','','','',ksum,sum]);
+  let tt='';
+  if(S.tickets.length){
+    tsv.push([]);tsv.push(['金券','単価','枚数','金額']);
+    S.tickets.forEach(k=>{
+      const n=tcount[k.id]||0;
+      tt+=`<tr><td>${esc(k.name)||'（名称なし）'}</td><td>${num(k.amt)}</td><td>${num(n)}</td><td>${num(n*(k.amt||0))}</td></tr>`;
+      tsv.push([k.name,k.amt,n,n*(k.amt||0)]);
+    });
+  }
+  m.innerHTML=`<div class="card"><h2>${esc(S.name)||'イベント'} 売上集計</h2>
+    <div class="tw"><table><thead><tr><th>日付</th><th>実棚</th><th>準備金</th><th>金券</th><th>当日売上</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td>合計</td><td colspan="2">${cnt}日入力</td><td>${num(ksum)}</td><td>${num(sum)}</td></tr></tfoot></table></div>
+    <div class="tot"><span>売上合計</span><b>${yen(sum)}</b></div>
+    ${tt?`<h2 style="margin-top:16px">金券・チケット内訳</h2><div class="tw"><table><thead><tr><th>種類</th><th>単価</th><th>枚数</th><th>金額</th></tr></thead><tbody>${tt}</tbody></table></div>`:''}
+    <button class="btn" id="copy">表をコピー（Excelに貼付可）</button>
+    <div class="note" id="cmsg"></div></div>`;
+  document.getElementById('copy').addEventListener('click',async()=>{
+    const text=tsv.map(r=>r.join('\t')).join('\n');
+    let ok=false;
+    try{await navigator.clipboard.writeText(text);ok=true;}catch(e){
+      try{const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();ok=document.execCommand('copy');t.remove();}catch(e2){}
+    }
+    document.getElementById('cmsg').textContent=ok?'コピーしました。Excel・スプレッドシートに貼り付けできます。':'コピーに失敗しました。';
+  });
+}
+
+function render(){
+  const m=document.getElementById('main');
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
+  setHeader();
+  ({setup:renderSetup,reserve:renderReserve,daily:renderDaily,summary:renderSummary})[view](m);
+  window.scrollTo(0,0);
+}
+document.getElementById('nav').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  view=b.dataset.v;render();
+});
+load();
+if(S.name&&S.start&&S.end)view='daily';
+render();
+</script>
+</body>
+</html>
