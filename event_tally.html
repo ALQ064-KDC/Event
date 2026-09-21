@@ -426,12 +426,89 @@ function downloadCSV(){
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 }
+const BILL_NAME={10000:'一万円札',5000:'五千円札',2000:'二千円札',1000:'千円札'};
+const COIN_NAME={500:'五百円玉',100:'百円玉',50:'五十円玉',10:'十円玉',5:'五円玉',1:'一円玉'};
+/* 1日分（または準備金）を縦型の金種表にする。準備金シートの合計は F20 固定 */
+function sheetRows(title,sub,cash,mode,info){
+  const N=(v,f)=>{const c={t:'n',v:v,z:'#,##0'};if(f)c.f=f;return c;};
+  const T=s=>({t:'s',v:String(s)});
+  const rows=[[T(title)],[T(sub)],[T('金種'),T('区分'),T('金額'),T('単位'),T('数量'),T('合計')]];
+  let r=4;
+  BILLS.forEach(d=>{
+    const n=cash.b[d]||0;
+    rows.push([T(BILL_NAME[d]),null,N(d),T('円'),N(n),N(n*d,`C${r}*E${r}`)]);r++;
+  });
+  COINS.forEach(d=>{
+    const a=cash.r[d]||0,b=cash.l[d]||0;
+    rows.push([T(COIN_NAME[d]),T('積金'),N(ROLL[d]),T('円'),N(a),N(a*ROLL[d],`C${r}*E${r}`)]);r++;
+    rows.push([null,T('バラ'),N(d),T('円'),N(b),N(b*d,`C${r}*E${r}`)]);r++;
+  });
+  const cashRow=r;
+  rows.push([T(mode==='day'?'実棚':info.label),null,null,null,null,N(cashTotal(cash),`SUM(F4:F${r-1})`)]);r++;
+  const out={cashRow};
+  if(mode==='res')return {rows,out};
+  let kRow=0;
+  if(S.tickets.length){
+    rows.push([T('金券・チケット')]);r++;
+    const k0=r;
+    S.tickets.forEach(k=>{
+      const n=(cash.t&&cash.t[k.id])||0;
+      rows.push([T(k.name||'金券'),T('金券'),N(k.amt||0),T('円'),N(n),N(n*(k.amt||0),`C${r}*E${r}`)]);r++;
+    });
+    rows.push([T('金券合計'),null,null,null,null,N(ticketTotal(cash),`SUM(F${k0}:F${r-1})`)]);
+    kRow=r;r++;
+  }
+  const resRow=r;
+  rows.push([T('準備金（準備金'+info.res+'）'),null,null,null,null,N(info.resAmt,`'準備金${info.res}'!F20`)]);r++;
+  const j=cashTotal(cash);
+  const f=`IF(F${cashRow}>0,F${cashRow}-F${resRow},0)`+(kRow?`+F${kRow}`:'');
+  rows.push([T('当日売上'),null,null,null,null,N(info.u,f)]);
+  out.kRow=kRow;out.resRow=resRow;
+  return {rows,out};
+}
+function setCols(ws,w){ws['!cols']=w.map(x=>({wch:x}));}
 function downloadXLSX(){
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(buildDailyTable()),'日次売上');
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(buildReserveTable()),'準備金');
+  const wcols=[14,8,10,6,8,14];
+  const entered=dayList().filter(d=>isEntered(S.days[d]));
+  const N=(v,f)=>{const c={t:'n',v:v,z:'#,##0'};if(f)c.f=f;return c;};
+  const T=s=>({t:'s',v:String(s)});
+  /* 集計シート */
+  const sumRows=[[T((S.name||'イベント')+' 売上集計')],[T((S.start||'')+' 〜 '+(S.end||''))],
+    [T('日付'),T('準備金No'),T('実棚'),T('準備金'),T('金券'),T('当日売上')]];
+  const sheets=[];
+  entered.forEach(d=>{
+    const c=S.days[d];
+    const v=calcDay(d);
+    const sn=(new Date(parseD(d)).getUTCMonth()+1)+'月'+new Date(parseD(d)).getUTCDate()+'日';
+    const sub=d.replace(/-/g,'/')+'('+WD[new Date(parseD(d)).getUTCDay()]+')';
+    const s=sheetRows(S.name||'イベント',sub,c,'day',{res:v.res,resAmt:v.r,u:v.u});
+    sheets.push({name:sn,rows:s.rows});
+    const q="'"+sn+"'!";
+    const n=sumRows.length+1;
+    sumRows.push([T(sub),N(v.res),N(v.j,q+'F'+s.out.cashRow),
+      N(v.j>0?v.r:0,`IF(C${n}>0,${q}F${s.out.resRow},0)`),
+      s.out.kRow?N(v.k,q+'F'+s.out.kRow):N(0),
+      N(v.u,`C${n}-D${n}+E${n}`)]);
+  });
+  if(entered.length){
+    const a=4,b=sumRows.length;
+    sumRows.push([T('合計'),null,null,null,N(ticketSum(entered),`SUM(E${a}:E${b})`),N(entered.reduce((t,d)=>t+calcDay(d).u,0),`SUM(F${a}:F${b})`)]);
+  }
+  const ws0=XLSX.utils.aoa_to_sheet(sumRows);setCols(ws0,[16,10,12,12,12,14]);
+  XLSX.utils.book_append_sheet(wb,ws0,'集計');
+  sheets.forEach(s=>{
+    const ws=XLSX.utils.aoa_to_sheet(s.rows);setCols(ws,wcols);
+    XLSX.utils.book_append_sheet(wb,ws,s.name);
+  });
+  [0,1].forEach(i=>{
+    const s=sheetRows(S.name||'イベント','釣銭準備金'+(i+1),S.reserves[i],'res',{label:'準備金'+(i+1)+' 合計'});
+    const ws=XLSX.utils.aoa_to_sheet(s.rows);setCols(ws,wcols);
+    XLSX.utils.book_append_sheet(wb,ws,'準備金'+(i+1));
+  });
   XLSX.writeFile(wb,fileBase()+'.xlsx');
 }
+function ticketSum(days){return days.reduce((t,d)=>t+calcDay(d).k,0);}
 
 /* ---- 集計 ---- */
 function renderSummary(m){
