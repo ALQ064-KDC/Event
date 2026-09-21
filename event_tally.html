@@ -78,6 +78,7 @@ nav button.on{color:var(--ac);font-weight:700}
   <button data-v="summary"><span>📊</span>集計</button>
 </nav>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const BILLS=[10000,5000,2000,1000];
 const COINS=[500,100,50,10,5,1];
@@ -366,6 +367,72 @@ function renderDaily(m){
   });
 }
 
+/* ---- 出力（CSV / Excel） ---- */
+function buildDailyTable(){
+  const days=dayList();
+  const head=['日付','曜日','準備金No','準備金額'];
+  BILLS.forEach(d=>head.push(num(d).replace(/,/g,'')+'円札(枚)'));
+  COINS.forEach(d=>{head.push(d+'円積金(本)');head.push(d+'円バラ(枚)');});
+  head.push('実棚');
+  S.tickets.forEach(k=>head.push((k.name||'金券')+'('+(k.amt||0)+'円)枚数'));
+  head.push('金券合計','当日売上');
+  const rows=[head];
+  const tot={};let ktot=0,utot=0;
+  days.forEach(d=>{
+    const c=S.days[d];
+    const wd=WD[new Date(parseD(d)).getUTCDay()];
+    if(!isEntered(c)){rows.push([d,wd]);return;}
+    const v=calcDay(d);
+    const r=[d,wd,v.res,v.j>0?v.r:0];
+    BILLS.forEach(x=>r.push(c.b[x]||0));
+    COINS.forEach(x=>{r.push(c.r[x]||0);r.push(c.l[x]||0);});
+    r.push(v.j);
+    S.tickets.forEach(k=>{const n=(c.t&&c.t[k.id])||0;r.push(n);tot[k.id]=(tot[k.id]||0)+n;});
+    r.push(v.k,v.u);
+    ktot+=v.k;utot+=v.u;
+    rows.push(r);
+  });
+  const t=['合計','','',''];
+  const fixed=BILLS.length+COINS.length*2+1;
+  for(let i=0;i<fixed;i++)t.push('');
+  S.tickets.forEach(k=>t.push(tot[k.id]||0));
+  t.push(ktot,utot);
+  rows.push(t);
+  return rows;
+}
+function buildReserveTable(){
+  const rows=[['項目','準備金1','準備金2']];
+  BILLS.forEach(d=>rows.push([d+'円札(枚)',S.reserves[0].b[d]||0,S.reserves[1].b[d]||0]));
+  COINS.forEach(d=>{
+    rows.push([d+'円積金(本)',S.reserves[0].r[d]||0,S.reserves[1].r[d]||0]);
+    rows.push([d+'円バラ(枚)',S.reserves[0].l[d]||0,S.reserves[1].l[d]||0]);
+  });
+  rows.push(['合計金額',cashTotal(S.reserves[0]),cashTotal(S.reserves[1])]);
+  return rows;
+}
+function fileBase(){
+  const n=(S.name||'イベント').replace(/[\\\/:*?"<>|]/g,'_');
+  return n+'_日次売上';
+}
+function csvCell(v){
+  const s=v==null?'':String(v);
+  return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function downloadCSV(){
+  const text='\uFEFF'+buildDailyTable().map(r=>r.map(csvCell).join(',')).join('\r\n');
+  const blob=new Blob([text],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=fileBase()+'.csv';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+function downloadXLSX(){
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(buildDailyTable()),'日次売上');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(buildReserveTable()),'準備金');
+  XLSX.writeFile(wb,fileBase()+'.xlsx');
+}
+
 /* ---- 集計 ---- */
 function renderSummary(m){
   const days=dayList();
@@ -401,7 +468,18 @@ function renderSummary(m){
     <div class="tot"><span>売上合計</span><b>${yen(sum)}</b></div>
     ${tt?`<h2 style="margin-top:16px">金券・チケット内訳</h2><div class="tw"><table><thead><tr><th>種類</th><th>単価</th><th>枚数</th><th>金額</th></tr></thead><tbody>${tt}</tbody></table></div>`:''}
     <button class="btn" id="copy">表をコピー（Excelに貼付可）</button>
+    <button class="btn sub" id="dlcsv">CSVで保存（日次売上・金種明細つき）</button>
+    <button class="btn sub" id="dlxlsx">Excel(.xlsx)で保存</button>
     <div class="note" id="cmsg"></div></div>`;
+  document.getElementById('dlcsv').addEventListener('click',()=>{
+    try{downloadCSV();document.getElementById('cmsg').textContent='CSVを保存しました（ダウンロードフォルダをご確認ください）。';}
+    catch(e){document.getElementById('cmsg').textContent='保存に失敗しました。';}
+  });
+  document.getElementById('dlxlsx').addEventListener('click',()=>{
+    if(typeof XLSX==='undefined'){document.getElementById('cmsg').textContent='Excel出力の部品を読み込めませんでした。CSVをご利用ください。';return;}
+    try{downloadXLSX();document.getElementById('cmsg').textContent='Excelファイルを保存しました（ダウンロードフォルダをご確認ください）。';}
+    catch(e){document.getElementById('cmsg').textContent='保存に失敗しました。';}
+  });
   document.getElementById('copy').addEventListener('click',async()=>{
     const text=tsv.map(r=>r.join('\t')).join('\n');
     let ok=false;
